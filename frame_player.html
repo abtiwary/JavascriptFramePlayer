@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>HTML5 Javascript Frame Player</title>
+
+<style type="text/css">
+    body {
+        height: 100%;
+        margin: 0 auto;
+    }
+
+    canvas {
+        position: absolute;
+        left: 100px;
+        top: 100px;
+        width: 1920px;
+        height: 1080px;
+        border: 1px solid black;
+    }
+
+    .slider {
+        position: absolute;
+        left: 100px;
+        top: 50px;
+    }
+
+</style>
+
+<script type="text/javascript">
+var json_file = "";
+var frame_count = 0;
+var frames = 0;
+
+var frameIndex = 0;
+
+var nbPreload = 10;
+var nbPreloaded = 0;
+
+var frameobjects = [];
+
+var remaining_frames = 0;
+
+function load_frames(path)
+{
+    var framesXHR = new XMLHttpRequest();
+
+   	framesXHR.onreadystatechange = function()
+   	{
+   	    if(framesXHR.status == 200)
+   	    {
+   	        frames = JSON.parse(framesXHR.responseText);
+   	    }
+   	}
+    framesXHR.open("GET", path, false);
+    framesXHR.send();
+}
+
+function preloadFrames(startfrm, endfrm) {
+    document.getElementById('buffering').innerHTML = "buffering...";
+    for(var i=startfrm; i < endfrm; ++i)
+    {
+
+        var videoframe = new Image;
+        var videoframeurl = frames[i];
+        videoframe.src = videoframeurl;
+        frameobjects.push(videoframe);
+    }
+    document.getElementById('buffering').innerHTML = "loaded...";
+    nbPreloaded += (endfrm - startfrm);
+}
+
+function init() {
+    // load frame information from this JSON file
+    json_file = "./frames_index.json";
+    // load frame paths
+    load_frames(json_file);
+
+    frame_count = Object.keys(frames).length;
+    //alert(frame_count);
+
+    var slider = document.getElementById('slider');
+    slider.max = frame_count - 1;
+    //alert(slider.max);
+    //alert(slider.min);
+
+    preloadFrames(0, nbPreload);
+
+    var canvas = document.getElementById('canvas');
+    var ctx = canvas.getContext("2d");
+
+    ctx.drawImage(frameobjects[frameIndex], 0, 0);
+
+    slider.addEventListener("input", function(event) {
+        frameIndex = event.target.value;
+        document.getElementById('value').innerHTML = "Frame: " + frameIndex;
+        frameIndex = parseInt(frameIndex);
+
+        //now buffer the next lot of frames if needed
+        if((frameIndex >= nbPreloaded) && (frameobjects.length < 26))
+        {
+            remaining_frames = frame_count - frameIndex;
+            //alert(remaining_frames);
+
+            // preload the next set
+            if(remaining_frames < nbPreload)
+            {
+                preloadFrames(frameIndex + 1, frameIndex + remaining_frames);
+            }
+            else
+            {
+                preloadFrames(frameIndex + 1, frameIndex + nbPreload);
+            }
+        }
+
+        ctx.drawImage(frameobjects[frameIndex], 0, 0);
+    });
+}
+</script>
+
+</head>
+
+<body onload="init()">
+<div id="value"></div>
+<div id="buffering"></div>
+<div id="remaining"></div>
+<canvas id="canvas" width="1920" height="1080"></canvas>
+<br/>
+<input id="slider" class="slider" type="range" min="0" max="100" value="1" />
+
+<script type="text/javascript">
+</script>
+
+</body>
+
+</html>
